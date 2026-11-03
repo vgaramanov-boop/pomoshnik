@@ -1,0 +1,40 @@
+'use strict';
+const { contextBridge, ipcRenderer } = require('electron');
+const inv = (ch) => (...a) => ipcRenderer.invoke(ch, ...a);
+
+contextBridge.exposeInMainWorld('api', {
+  getSettings: inv('settings:get'),
+  setSettings: inv('settings:set'),
+  info: inv('app:info'),
+  install: inv('app:install'),
+  show: inv('app:show'),
+  flash: inv('app:flash'),
+  listScreens: inv('screens:list'),
+  hostStart: inv('session:host-start'),
+  hostStop: inv('session:host-stop'),
+  setDisplay: inv('session:set-display'),
+  input: (ev) => ipcRenderer.send('input', ev),
+  clipRead: inv('clipboard:read'),
+  clipWrite: inv('clipboard:write'),
+  recStart: inv('rec:start'),
+  recChunk: inv('rec:chunk'),
+  recStop: inv('rec:stop'),
+  recOpenFolder: inv('rec:open-folder'),
+  recShow: inv('rec:show'),
+  fileRecvStart: inv('file:recv-start'),
+  fileRecvChunk: inv('file:recv-chunk'),
+  fileRecvEnd: inv('file:recv-end'),
+  filePick: inv('file:pick'),
+  fileStat: inv('file:stat'),
+  fileRead: inv('file:read'),
+  fileClose: inv('file:close'),
+  fileShow: inv('file:show'),
+  fullscreen: inv('win:fullscreen'),
+  maximize: inv('win:maximize'),
+  minimize: inv('win:minimize'),
+  viewerMode: inv('viewer-mode'),
+  onHostDisconnect: (cb) => ipcRenderer.on('host:disconnect', () => cb()),
+  bannerDisconnect: () => ipcRenderer.send('banner:disconnect'),
+  onBannerName: (cb) => ipcRenderer.on('banner-name', (_e, n) => cb(n)),
+  pathForFile: (f) => { try { return require('electron').webUtils.getPathForFile(f); } catch { return f.path; } }
+});

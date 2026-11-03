@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src wss://0.peerjs.com wss://broker.emqx.io:8084 wss://broker.hivemq.com:8884 wss://test.mosquitto.org:8081; manifest-src 'self'">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Помощник">
+<meta name="theme-color" content="#1f6f5c">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Помощник</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="web.css">
+</head>
+<body data-view="home">
+
+<!-- ======= установка ======= -->
+<section id="install" class="view" hidden>
+  <div class="center-card">
+    <img src="icon.png" alt="" class="logo-big">
+    <h1>Установить «Помощник»?</h1>
+    <p>Программа скопируется на этот компьютер, на рабочем столе появится значок, и она будет запускаться сама при включении компьютера. Так к вам всегда можно будет подключиться, чтобы помочь.</p>
+    <button id="btnInstall" class="primary xl">Установить</button>
+    <button id="btnSkipInstall" class="ghost">Запустить без установки</button>
+  </div>
+</section>
+
+<!-- ======= главный экран ======= -->
+<section id="home" class="view">
+  <header class="top">
+    <div class="brand"><img src="icon.png" alt=""><span>Помощник</span></div>
+    <div class="net"><span id="netDot" class="dot"></span><span id="netText">Подключаемся к интернету…</span></div>
+    <button id="btnSettings" class="ghost" title="Настройки">⚙ Настройки</button>
+  </header>
+
+  <main class="grid">
+    <div class="card mine">
+      <h2>Номер этого компьютера</h2>
+      <div class="bigid" id="myId">··· ··· ···</div>
+      <button id="btnCopyId" class="ghost">Скопировать номер</button>
+      <p class="hint">Назовите этот номер тому, кто будет вам помогать. Когда он подключится, здесь появится вопрос — нажмите <b>«Разрешить»</b>.</p>
+      <div class="a2hs web-only" id="a2hs">Совет: нажмите <b>«Поделиться»</b> ⬆︎ внизу Safari → <b>«На экран „Домой“»</b>. Появится значок «Помощник», и номера родителей будут всегда под рукой.</div>
+      <label class="field">Ваше имя (его увидит собеседник)
+        <input id="myName" maxlength="40" placeholder="Например: Мама">
+      </label>
+    </div>
+
+    <div class="card">
+      <h2>Помочь другому компьютеру</h2>
+      <div class="connect-row">
+        <input id="peerId" inputmode="numeric" placeholder="123 456 789" autocomplete="off">
+        <button id="btnConnect" class="primary">Подключиться</button>
+      </div>
+      <h3>Мои компьютеры</h3>
+      <div id="contacts" class="contacts"></div>
+    </div>
+  </main>
+</section>
+
+<!-- ======= экран хоста во время сеанса ======= -->
+<section id="host" class="view" hidden>
+  <div class="center-card">
+    <div class="pulse"></div>
+    <h1>К вам подключён <span id="hostName"></span></h1>
+    <p>Он видит ваш экран и может управлять мышью и клавиатурой, чтобы помочь. Вверху экрана горит красная полоска — пока она есть, подключение активно.</p>
+    <button id="btnHostStop" class="danger xl">Отключить</button>
+    <button id="btnHostFile" class="ghost">Отправить ему файл…</button>
+  </div>
+</section>
+
+<!-- ======= экран помощника во время сеанса ======= -->
+<section id="viewer" class="view" hidden>
+  <div class="toolbar">
+    <div class="tb-left">
+      <b id="peerName"></b>
+      <small id="stats"></small>
+      <small id="connBadge" class="badge" hidden></small>
+    </div>
+    <div class="tb-mid">
+      <button id="btnKbd" class="tb" title="Клавиатура"><i>⌨︎</i><span>Клавиатура</span></button>
+      <button id="btnControl" class="tb on" title="Включить/выключить управление мышью и клавиатурой"><i>🖱</i><span>Управление: вкл</span></button>
+      <label class="tb sel" title="Качество картинки">Картинка <select id="selQuality"></select></label>
+      <label class="tb sel" hidden title="Какой монитор показывать">Экран <select id="selScreen"></select></label>
+      <button id="btnHelp" class="tb" title="Как управлять пальцами"><i>?</i><span>Жесты</span></button>
+      <button id="btnFit" class="tb" title="Вписать в окно / реальный размер"><i>⤢</i><span>Вписать</span></button>
+      <button id="btnFull" class="tb" title="Во весь экран"><i>⛶</i><span>Весь экран</span></button>
+      <div class="tb-group">
+        <button id="btnKeys" class="tb" title="Особые сочетания клавиш (Пуск, Alt+Tab…)"><i>⊞</i><span>Клавиши</span></button>
+        <div id="keysMenu" class="menu" hidden>
+          <button data-k="win">Кнопка «Пуск» (Win)</button>
+          <button data-k="alttab">Alt + Tab — переключить окно</button>
+          <button data-k="taskmgr">Диспетчер задач (Ctrl+Shift+Esc)</button>
+          <button data-k="winD">Показать рабочий стол (Win+D)</button>
+          <button data-k="winE">Проводник (Win+E)</button>
+          <button data-k="winR">Выполнить… (Win+R)</button>
+          <button data-k="altf4">Закрыть окно (Alt+F4)</button>
+          <button data-k="esc">Esc</button>
+        </div>
+      </div>
+      <div class="tb-group">
+        <button id="btnMore" class="tb" title="Текст, буфер обмена и файлы"><i>⇄</i><span>Передать</span></button>
+        <div id="moreMenu" class="menu" hidden>
+          <button id="btnType">✎ Напечатать текст у них…</button>
+          <button id="btnClipTo">→ Отправить мой скопированный текст в их буфер</button>
+          <button id="btnClipFrom">← Забрать их скопированный текст ко мне</button>
+          <button id="btnSendFile">📎 Отправить файл… (или перетащите файл в окно)</button>
+        </div>
+      </div>
+    </div>
+    <div class="tb-right">
+      <div class="rec-box">
+        <button id="btnRec" class="tb rec" title="Записать экран в видеофайл"><i class="recdot"></i><span class="rec-off">Запись</span><span class="rec-on">Стоп</span></button>
+        <span id="recInfo" class="rec-on"></span>
+        <button id="btnRecPause" class="tb rec-on">Пауза</button>
+        <select id="selRecQ" class="rec-off" title="Качество записи"></select>
+      </div>
+      <button id="btnDisconnect" class="danger sm">Отключиться</button>
+    </div>
+  </div>
+  <div id="stage" class="stage">
+    <video id="remote" tabindex="0" autoplay muted playsinline></video>
+    <div class="drop-hint">Отпустите, чтобы отправить файл</div>
+  </div>
+</section>
+
+<!-- ======= окна-вопросы ======= -->
+<div id="waiting" class="modal" hidden>
+  <div class="dialog">
+    <div class="spinner"></div>
+    <p id="waitText">Соединяемся…</p>
+    <button id="btnCancelWait" class="ghost">Отмена</button>
+  </div>
+</div>
+
+<div id="incoming" class="modal alert" hidden>
+  <div class="dialog big">
+    <h1>Запрос на подключение</h1>
+    <p class="who"><b id="inName"></b><br><small>номер <span id="inId"></span></small></p>
+    <p>хочет подключиться к вашему компьютеру, чтобы помочь. Он будет видеть экран и сможет управлять мышью.</p>
+    <div class="actions">
+      <button id="inAllow" class="primary xl">Разрешить</button>
+      <button id="inDeny" class="ghost xl">Отклонить</button>
+    </div>
+    <label class="check"><input type="checkbox" id="inTrust"> Разрешать этому человеку подключаться без вопроса</label>
+    <small class="muted">Вопрос закроется сам через <span id="inTimer">60</span> с</small>
+  </div>
+</div>
+
+<div id="typeBox" class="modal" hidden>
+  <div class="dialog">
+    <h2>Напечатать текст на их компьютере</h2>
+    <p class="muted">Текст будет набран там, где у них сейчас мигает курсор. Язык и раскладка не важны.</p>
+    <textarea id="typeText" rows="5"></textarea>
+    <div class="actions"><button id="typeSend" class="primary">Напечатать</button><button id="typeCancel" class="ghost">Отмена</button></div>
+  </div>
+</div>
+
+<div id="settings" class="modal" hidden>
+  <div class="dialog wide">
+    <h2>Настройки</h2>
+    <label class="check"><input type="checkbox" id="optAutostart"> Запускать «Помощник» при включении компьютера</label>
+    <label class="field">Качество записи экрана <select id="optRecQ"></select></label>
+    <button id="btnRecFolder" class="ghost">Открыть папку с записями</button>
+    <h3>Кому можно подключаться без вопроса</h3>
+    <div id="trustedList" class="contacts"></div>
+    <details>
+      <summary>Дополнительно (для опытных)</summary>
+      <p class="muted">Если компьютеры не могут соединиться напрямую (бывает при мобильном интернете), можно указать свой TURN-сервер.</p>
+      <label class="field">Адрес TURN <input id="turnUrls" placeholder="turn:example.com:3478"></label>
+      <label class="field">Логин <input id="turnUser"></label>
+      <label class="field">Пароль <input id="turnPass" type="password"></label>
+      <button id="turnSave" class="ghost">Сохранить</button>
+    </details>
+    <div class="actions"><button id="btnCloseSettings" class="primary">Готово</button></div>
+  </div>
+</div>
+
+<textarea id="kbd" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="Клавиатура"></textarea>
+
+<div id="copyBox" class="modal" hidden>
+  <div class="dialog">
+    <h2>Текст с их компьютера</h2>
+    <textarea rows="5" readonly></textarea>
+    <div class="actions"><button data-a="copy" class="primary">Скопировать</button><button data-a="close" class="ghost">Закрыть</button></div>
+  </div>
+</div>
+
+<div id="touchHelp" class="modal" hidden>
+  <div class="dialog">
+    <h2>Управление пальцами</h2>
+    <ul class="help-list">
+      <li><b>Коснуться</b> щелчок мышью</li>
+      <li><b>Два касания</b> двойной щелчок</li>
+      <li><b>Подержать</b> правая кнопка мыши</li>
+      <li><b>Подержать и вести</b> перетащить</li>
+      <li><b>Вести одним пальцем</b> прокрутка</li>
+      <li><b>Двумя пальцами</b> увеличить и двигать картинку</li>
+      <li><b>⌨︎</b> клавиатура: печатаете у них</li>
+    </ul>
+    <div class="actions"><button id="touchHelpOk" class="primary">Понятно</button></div>
+  </div>
+</div>
+
+<div id="progress" class="progress" hidden><span></span><div class="bar"><i></i></div></div>
+<button id="btnRecFolder2" hidden></button>
+<div id="toasts"></div>
+
+<script src="web-shim.js"></script>
+<script src="signal.js"></script>
+<script src="app.js"></script>
+<script src="web-touch.js"></script>
+<script src="web-boot.js"></script>
+</body>
+</html>

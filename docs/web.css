@@ -1,0 +1,72 @@
+/* Дополнения для веб-версии (iPhone / iPad / браузер) */
+html.web, html.web body { height: 100%; overscroll-behavior: none; }
+html.web body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+html.web input, html.web textarea, html.web select { font-size: 16px; } /* iOS не увеличивает страницу при вводе */
+
+/* главный экран: у телефона нет своего номера — к нему не подключаются */
+html.web .mine h2, html.web .bigid, html.web #btnCopyId, html.web .mine .hint { display: none; }
+html.web .mine { order: 2; }
+html.web .mine .field { margin-top: 0; }
+.web-only { display: none; }
+html.web .web-only { display: block; }
+html.web #optAutostart, html.web label.check:has(#optAutostart), html.web #btnRecFolder,
+html.web #settings h3, html.web #trustedList { display: none !important; }
+.a2hs { background: var(--accent-soft); border-radius: 12px; padding: 12px 14px; color: var(--ink); font-size: 14px; line-height: 1.45; }
+.a2hs b { color: var(--accent); }
+
+/* панель управления во время подключения */
+html.web #btnFit, html.web #btnFull, html.web #selRecQ, html.web #btnControl span { display: none !important; }
+html.web .tb.sel { font-size: 0; gap: 0; }
+html.web .tb.sel select { font-size: 13px; }
+#btnKbd, #btnHelp { display: none; }
+html.web #btnKbd, html.web #btnHelp { display: inline-flex; }
+html.web .stage { touch-action: none; }
+html.web .stage video { transform-origin: 0 0; will-change: transform; }
+html.web #kbd { position: fixed; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; font-size: 16px; }
+body.kbd-open #btnKbd { background: #2b4a41; }
+
+@media (max-width: 900px) {
+  html.web .toolbar { flex-wrap: nowrap; gap: 4px; padding: 4px 6px; }
+  html.web .tb-left { min-width: 0; max-width: 34vw; }
+  html.web .tb-left b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  html.web #stats { display: none; }
+  html.web .tb-mid { flex-wrap: nowrap; overflow-x: auto; gap: 2px; scrollbar-width: none; }
+  html.web .tb-group { position: static; }
+  html.web .tb-mid::-webkit-scrollbar { display: none; }
+  html.web .tb { padding: 8px; font-size: 18px; }
+  html.web .tb span { display: none; }
+  html.web .tb-right { gap: 4px; }
+  html.web #recInfo { min-width: 0; font-size: 11px; }
+  html.web #btnRecPause { font-size: 12px; }
+  html.web #btnDisconnect { padding: 7px 10px; font-size: 13px; }
+  html.web .menu { position: fixed; top: calc(env(safe-area-inset-top) + 52px); left: 8px; right: 8px; min-width: 0; }
+  html.web .menu button { padding: 12px; font-size: 15px; }
+  html.web .grid { padding: 14px; gap: 14px; }
+  html.web .card { padding: 18px; }
+  html.web .top { padding: 10px 14px; }
+  html.web .net { font-size: 13px; }
+  html.web #btnSettings { padding: 8px 10px; font-size: 0; }
+  html.web #btnSettings::before { content: '⚙'; font-size: 18px; }
+  html.web .connect-row { flex-direction: column; }
+  html.web .contact { flex-wrap: wrap; }
+  html.web .contact .c-main { flex-basis: 100%; }
+  html.web .contact [data-a=go] { margin-left: auto; }
+  html.web #toasts { left: 10px; right: 10px; bottom: calc(env(safe-area-inset-bottom) + 10px); max-width: none; }
+}
+
+.touch-ring { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; pointer-events: none; opacity: 0; z-index: 5; }
+.touch-ring.on { opacity: 1; transition: opacity .3s; }
+.touch-ring.tap { border: 3px solid rgba(127, 209, 185, .9); }
+.touch-ring.long { border: 3px solid #ffb86b; background: rgba(255, 184, 107, .2); width: 64px; height: 64px; margin: -32px 0 0 -32px; }
+
+.help-list { text-align: left; margin: 0 0 6px; padding: 0; list-style: none; }
+.help-list li { padding: 8px 0; border-bottom: 1px solid var(--line); line-height: 1.35; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* телефон вертикально: две строки — сверху имя, запись и «Отключиться», снизу инструменты */
+@media (max-width: 600px) {
+  html.web .toolbar { flex-wrap: wrap; row-gap: 2px; }
+  html.web .tb-left { order: 1; flex: 1; max-width: none; }
+  html.web .tb-right { order: 2; }
+  html.web .tb-mid { order: 3; flex-basis: 100%; justify-content: space-between; }
+  html.web .menu { top: calc(env(safe-area-inset-top) + 96px); }
+}

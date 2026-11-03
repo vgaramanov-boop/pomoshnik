@@ -1,0 +1,9 @@
+{
+  "name": "pomoshnik",
+  "productName": "Помощник",
+  "version": "1.0.0",
+  "description": "Удалённая помощь родным: просмотр экрана, управление, запись",
+  "main": "main.js",
+  "author": "Pomoshnik",
+  "license": "MIT"
+}
