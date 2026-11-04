@@ -1,6 +1,6 @@
 'use strict';
 const { app, BrowserWindow, ipcMain, desktopCapturer, screen, Tray, Menu, nativeImage,
-        clipboard, shell, dialog, Notification, powerSaveBlocker } = require('electron');
+        clipboard, shell, dialog, Notification, powerSaveBlocker, systemPreferences } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -20,7 +20,8 @@ const INSTALL_DIR = IS_WIN ? path.join(process.env.LOCALAPPDATA || os.homedir(),
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
 
 let win = null, banner = null, tray = null, quitting = false;
-let startHidden = process.argv.includes('--hidden');
+let startHidden = process.argv.includes('--hidden') ||
+  (process.platform === 'darwin' && (() => { try { return app.getLoginItemSettings().wasOpenedAtLogin; } catch { return false; } })());
 
 // ---------- настройки ----------
 function loadSettings() {
@@ -35,7 +36,13 @@ if (settings.autostart === undefined) settings.autostart = true;
 saveSettings(settings);
 
 function applyAutostart() {
-  if (!IS_WIN || !app.isPackaged || !isInstalled()) return;
+  if (!app.isPackaged) return;
+  if (process.platform === 'darwin') {
+    if (!process.execPath.startsWith('/Applications/')) return; // только из папки «Программы»
+    app.setLoginItemSettings({ openAtLogin: !!settings.autostart, openAsHidden: true });
+    return;
+  }
+  if (!IS_WIN || !isInstalled()) return;
   app.setLoginItemSettings({ openAtLogin: !!settings.autostart, path: process.execPath, args: ['--hidden'] });
 }
 
@@ -144,7 +151,14 @@ async function doInstall() {
 // ---------- управление вводом (только Windows) ----------
 let inputProc = null, inputReady = false;
 function startInput() {
-  if (!IS_WIN || inputProc) return;
+  if (inputProc) return;
+  if (process.platform === 'darwin') {
+    inputProc = spawn('/usr/bin/osascript', ['-l', 'JavaScript', path.join(APP_DIR, 'input-mac.js')], { stdio: ['pipe', 'pipe', 'ignore'] });
+    inputProc.stdout.on('data', (d) => { if (String(d).includes('READY')) inputReady = true; });
+    inputProc.on('exit', () => { inputProc = null; inputReady = false; });
+    return;
+  }
+  if (!IS_WIN) return;
   const script = path.join(APP_DIR, 'input.ps1');
   inputProc = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script],
                     { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
@@ -165,6 +179,7 @@ function toPhysical(nx, ny) {
   const d = activeDisplay || screen.getPrimaryDisplay();
   const b = d.bounds;
   const p = { x: b.x + Math.max(0, Math.min(1, nx)) * (b.width - 1), y: b.y + Math.max(0, Math.min(1, ny)) * (b.height - 1) };
+  if (process.platform === 'darwin') return { x: Math.round(p.x), y: Math.round(p.y) }; // macOS: те же точки, что у CoreGraphics
   if (IS_WIN && screen.dipToScreenPoint) {
     const q = screen.dipToScreenPoint(p);
     return { x: Math.round(q.x), y: Math.round(q.y) };
@@ -195,6 +210,23 @@ ipcMain.handle('app:info', () => ({
   testRelay: process.env.POMOSHNIK_TEST_RELAY || null
 }));
 ipcMain.handle('app:install', () => doInstall());
+// разрешения macOS, без которых к этому Mac нельзя подключиться
+ipcMain.handle('mac:perms', () => {
+  if (process.platform !== 'darwin') return null;
+  return { screen: systemPreferences.getMediaAccessStatus('screen'), access: systemPreferences.isTrustedAccessibilityClient(false),
+           inApps: process.execPath.startsWith('/Applications/') };
+});
+ipcMain.handle('mac:ask', async (_e, which) => {
+  if (process.platform !== 'darwin') return;
+  if (which === 'access') {
+    systemPreferences.isTrustedAccessibilityClient(true);
+    shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
+  } else {
+    try { await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1, height: 1 } }); } catch {}
+    shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
+  }
+});
+ipcMain.handle('app:relaunch', () => { quitting = true; app.relaunch(); app.exit(0); });
 ipcMain.handle('app:show', () => showMain());
 ipcMain.handle('app:flash', () => { showMain(); if (win) { win.setAlwaysOnTop(true); win.flashFrame(true); setTimeout(() => win && win.setAlwaysOnTop(false), 1500); } });
 

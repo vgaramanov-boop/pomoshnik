@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob: mediastream:; connect-src wss://0.peerjs.com wss://broker.emqx.io:8084 wss://broker.hivemq.com:8884 wss://test.mosquitto.org:8081">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob: mediastream:; connect-src wss://0.peerjs.com wss://broker.emqx.io:8084 wss://broker.hivemq.com:8884 wss://test.mosquitto.org:8081 wss://mqtt.eclipseprojects.io">
 <title>Помощник</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -33,6 +33,15 @@
       <div class="bigid" id="myId">··· ··· ···</div>
       <button id="btnCopyId" class="ghost">Скопировать номер</button>
       <p class="hint">Назовите этот номер тому, кто будет вам помогать. Когда он подключится, здесь появится вопрос — нажмите <b>«Разрешить»</b>.</p>
+      <div id="macPerm" class="perm" hidden>
+        <b>Чтобы к этому Mac можно было подключаться</b>
+        <p>macOS требует один раз дать «Помощнику» два разрешения. Нажмите кнопку, в открывшихся Настройках включите переключатель напротив «Помощник» (может называться Pomoshnik).</p>
+        <div class="perm-row"><span id="permScreenSt">○</span> Запись экрана — чтобы помощник видел экран <button id="permScreen" class="ghost sm">Разрешить</button></div>
+        <div class="perm-row"><span id="permAccessSt">○</span> Универсальный доступ — чтобы он мог управлять мышью <button id="permAccess" class="ghost sm">Разрешить</button></div>
+        <p id="permRestart" class="muted" hidden>После включения «Записи экрана» программу нужно перезапустить. <button id="permRelaunch" class="link">Перезапустить</button></p>
+        <p id="permMove" class="muted" hidden>Сначала перетащите Pomoshnik.app в папку «Программы» и запустите оттуда — иначе разрешения и автозапуск не сохранятся.</p>
+        <button id="permSkip" class="link muted">Мне это не нужно, я только помогаю</button>
+      </div>
       <label class="field">Ваше имя (его увидит собеседник)
         <input id="myName" maxlength="40" placeholder="Например: Мама">
       </label>
@@ -163,6 +172,15 @@
       <button id="turnSave" class="ghost">Сохранить</button>
     </details>
     <div class="actions"><button id="btnCloseSettings" class="primary">Готово</button></div>
+  </div>
+</div>
+
+<div id="netBox" class="modal" hidden>
+  <div class="dialog">
+    <h2>Службы связи</h2>
+    <p class="muted">Чтобы два компьютера нашли друг друга, хотя бы одна служба должна быть отмечена ✓ на обоих.</p>
+    <div id="netList" style="text-align:left;max-width:240px;margin:0 auto"></div>
+    <div class="actions"><button id="netClose" class="primary">Понятно</button></div>
   </div>
 </div>
 

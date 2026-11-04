@@ -38,7 +38,7 @@ def rep(a, b):
     assert a in h, a[:80]
     h = h.replace(a, b, 1)
 
-connect = 'wss://0.peerjs.com wss://broker.emqx.io:8084 wss://broker.hivemq.com:8884 wss://test.mosquitto.org:8081'
+connect = 'wss://0.peerjs.com wss://broker.emqx.io:8084 wss://broker.hivemq.com:8884 wss://test.mosquitto.org:8081 wss://mqtt.eclipseprojects.io'
 if TEST: connect = 'ws://127.0.0.1:8765 ' + connect
 csp_start = h.index('<meta http-equiv="Content-Security-Policy"'); csp_end = h.index('>', csp_start) + 1
 h = h[:csp_start] + (f'<meta http-equiv="Content-Security-Policy" content="default-src \'self\'; script-src \'self\'; style-src \'self\' \'unsafe-inline\'; '

@@ -45,14 +45,15 @@ const Signal = (() => {
       transports.push(kind === 'mqtt' ? new MqttTransport(base + '/mqtt', myId) : new PeerJsTransport(base + '/peerjs', 'pomoshnik-' + myId, ident.token));
     } else {
       transports.push(new PeerJsTransport('wss://0.peerjs.com/peerjs', 'pomoshnik-' + myId, ident.token));
-      for (const url of ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'])
+      for (const url of ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt',
+                         'wss://mqtt.eclipseprojects.io:443/mqtt'])
         transports.push(new MqttTransport(url, myId));
     }
     for (const t of transports) { t.onMessage = onEnvelope; t.onStatus = reportStatus; t.start(); }
     setInterval(() => { const now = Date.now(); for (const [k, v] of seen) if (now - v > 600000) seen.delete(k); }, 60000);
     return myId;
   }
-  function reportStatus() { statusCb(transports.filter(t => t.connected).length, transports.length); }
+  function reportStatus() { statusCb(transports.filter(t => t.connected).length, transports.length, transports.map(t => ({ name: t.label, ok: t.connected }))); }
 
   async function aesKeyFor(pubB64) {
     if (keyCache.has(pubB64)) return keyCache.get(pubB64);
@@ -119,7 +120,7 @@ const Signal = (() => {
 
   // ---------- PeerJS Cloud ----------
   class PeerJsTransport {
-    constructor(base, pid, token) { this.base = base; this.pid = pid; this.token = token; this.connected = false; this.delay = 2000; }
+    constructor(base, pid, token) { this.base = base; this.pid = pid; this.token = token; this.connected = false; this.delay = 2000; this.label = 'PeerJS'; }
     start() {
       const url = `${this.base}?key=peerjs&id=${encodeURIComponent(this.pid)}&token=${this.token}&version=1.5.4`;
       let ws;
@@ -141,7 +142,8 @@ const Signal = (() => {
 
   // ---------- MQTT 3.1.1 поверх WebSocket (минимальный клиент) ----------
   class MqttTransport {
-    constructor(url, id) { this.url = url; this.id = id; this.connected = false; this.delay = 2000; this.buf = new Uint8Array(0); }
+    constructor(url, id) { this.url = url; this.id = id; this.connected = false; this.delay = 2000; this.buf = new Uint8Array(0);
+      const h = url.replace(/^wss?:\/\//, '').split(/[:/]/)[0]; this.label = h.split('.').slice(-2, -1)[0] || h; }
     topic(id) { return 'pomoshnik/v1/' + id; }
     static str(s) { const b = enc.encode(s); return [b.length >> 8, b.length & 255, ...b]; }
     static len(n) { const o = []; do { let d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; o.push(d); } while (n > 0); return o; }

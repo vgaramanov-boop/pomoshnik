@@ -115,7 +115,8 @@ async function connectTo(rawId) {
   $('#waitText').textContent = 'Ищем компьютер ' + fmtId(id) + '…';
   modal('#waiting', true);
   Signal.hello(id);
-  const ok = await Signal.waitKey(id, 15000) || (Signal.hello(id), await Signal.waitKey(id, 10000));
+  let ok = false;
+  for (let i = 0; i < 6 && !ok; i++) { if (i) Signal.hello(id); ok = await Signal.waitKey(id, 4000); if (!sess || sess.peer !== id) return; }
   if (!sess || sess.peer !== id) return;
   if (!ok) return endSession('Компьютер с номером ' + fmtId(id) + ' сейчас не в сети. Убедитесь, что там включён компьютер и запущен «Помощник».', true, false);
   $('#waitText').textContent = 'Ждём, пока на том компьютере нажмут «Разрешить»…';
@@ -396,6 +397,15 @@ async function hostAccept(m, fromDialog = true) {
     if ($('#inTrust').checked) { const tr = Object.assign({}, S.trusted || {}); tr[m.from] = { pub: Signal.knownKey(m.from), name: m.name }; await save({ trusted: tr }); }
     pendingReq = null;
   }
+  if (INFO.platform === 'darwin') {
+    const pm = await api.macPerms();
+    if (pm && pm.screen !== 'granted') {
+      Signal.send(m.from, { t: 'rej', sid: m.sid, reason: 'perm' }).catch(() => {});
+      checkMacPerms(true); api.show();
+      return toast('Чтобы показать экран, разрешите «Запись экрана» (подсказка в окне программы)', 'err');
+    }
+    if (pm && !pm.access) toast('Управление мышью не разрешено — помощник сможет только смотреть. Разрешите «Универсальный доступ».', 'err');
+  }
   const screens = await api.listScreens();
   if (!screens.length) { Signal.send(m.from, { t: 'rej', sid: m.sid, reason: 'noscreen' }).catch(() => {}); return toast('Не удалось получить изображение экрана', 'err'); }
   sess = { role: 'host', sid: m.sid, peer: m.from, peerName: m.name || fmtId(m.from), screens, cur: screens[0].id, quality: 'normal', accepted: true };
@@ -464,7 +474,7 @@ Signal.on(async (m) => {
   if (!sess || m.sid !== sess.sid || m.from !== sess.peer) return;
   switch (m.t) {
     case 'acc': if (sess.role === 'viewer') viewerOnAccept(m); break;
-    case 'rej': if (sess.role === 'viewer') endSession(m.reason === 'busy' ? 'К этому компьютеру уже кто-то подключён.' : m.reason === 'noscreen' ? 'К этому устройству подключиться нельзя (это телефон или браузер).' : 'На том компьютере отклонили подключение.', true, false); break;
+    case 'rej': if (sess.role === 'viewer') endSession(m.reason === 'busy' ? 'К этому компьютеру уже кто-то подключён.' : m.reason === 'perm' ? 'На том Mac ещё не разрешена «Запись экрана». Там в окне «Помощника» есть подсказка, как это включить.' : m.reason === 'noscreen' ? 'К этому устройству подключиться нельзя (это телефон или браузер).' : 'На том компьютере отклонили подключение.', true, false); break;
     case 'offer': if (sess.role === 'viewer') viewerOnOffer(m).catch(e => { console.error(e); endSession('Ошибка соединения', true); }); break;
     case 'answer': if (sess.role === 'host' && sess.pc) { await sess.pc.setRemoteDescription(m.sdp); await flushIce(); } break;
     case 'ice': addRemoteIce(m.c); break;
@@ -511,6 +521,21 @@ function renderTrusted() {
   }
 }
 
+// ========== разрешения macOS ==========
+let permScreenAsked = false;
+async function checkMacPerms(force) {
+  if (INFO.platform !== 'darwin') return;
+  const pm = await api.macPerms(); if (!pm) return;
+  const all = pm.screen === 'granted' && pm.access && pm.inApps;
+  const box = $('#macPerm');
+  box.hidden = all || (S.macPermSkip && !force);
+  const st = (el, ok) => { el.textContent = ok ? '✓' : '○'; el.className = ok ? 'ok' : ''; };
+  st($('#permScreenSt'), pm.screen === 'granted'); st($('#permAccessSt'), pm.access);
+  $('#permScreen').hidden = pm.screen === 'granted'; $('#permAccess').hidden = pm.access;
+  $('#permRestart').hidden = !(permScreenAsked && pm.screen !== 'granted');
+  $('#permMove').hidden = pm.inApps;
+}
+
 // ========== запуск ==========
 async function boot() {
   S = await api.getSettings(); INFO = await api.info();
@@ -520,10 +545,13 @@ async function boot() {
 
   const id = await Signal.init(S, save, INFO.testRelay);
   $('#myId').textContent = fmtId(id);
-  Signal.onStatus((n) => {
+  Signal.onStatus((n, total, list) => {
     const ok = n > 0; $('#netDot').className = 'dot ' + (ok ? 'ok' : 'bad');
-    $('#netText').textContent = ok ? 'Готов к подключению' : 'Нет связи с интернетом — ждём…';
+    $('#netText').textContent = ok ? `Готов к подключению (${n} из ${total})` : 'Нет связи с интернетом — ждём…';
+    $('#netList').innerHTML = (list || []).map(t => `<div class="perm-row"><span class="${t.ok ? 'ok' : ''}">${t.ok ? '✓' : '✗'}</span> ${esc(t.name)}</div>`).join('');
   });
+  $('.net').onclick = () => { modal('#netBox', true); };
+  $('#netClose').onclick = () => modal('#netBox', false);
   renderContacts();
 
   // домашний экран
@@ -535,6 +563,16 @@ async function boot() {
   inp.onkeydown = (e) => { if (e.key === 'Enter') connectTo(inp.value); };
   $('#btnConnect').onclick = () => connectTo(inp.value);
   $('#btnCancelWait').onclick = cancelConnect;
+
+  // разрешения macOS
+  if (INFO.platform === 'darwin') {
+    checkMacPerms();
+    window.addEventListener('focus', () => checkMacPerms());
+    $('#permScreen').onclick = () => { permScreenAsked = true; api.macAsk('screen'); setTimeout(checkMacPerms, 1500); };
+    $('#permAccess').onclick = () => { api.macAsk('access'); };
+    $('#permRelaunch').onclick = () => api.relaunch();
+    $('#permSkip').onclick = async () => { await save({ macPermSkip: true }); $('#macPerm').hidden = true; };
+  }
 
   // установка
   $('#btnInstall').onclick = async () => { $('#btnInstall').disabled = true; $('#btnInstall').textContent = 'Устанавливаем…'; try { await api.install(); } catch (e) { toast('Не получилось установить: ' + e.message, 'err'); $('#btnInstall').disabled = false; } };
