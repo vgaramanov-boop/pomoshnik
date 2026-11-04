@@ -153,8 +153,18 @@ let inputProc = null, inputReady = false;
 function startInput() {
   if (inputProc) return;
   if (process.platform === 'darwin') {
-    inputProc = spawn('/usr/bin/osascript', ['-l', 'JavaScript', path.join(APP_DIR, 'input-mac.js')], { stdio: ['pipe', 'pipe', 'ignore'] });
-    inputProc.stdout.on('data', (d) => { if (String(d).includes('READY')) inputReady = true; });
+    inputProc = spawn('/usr/bin/osascript', ['-l', 'JavaScript', path.join(APP_DIR, 'input-mac.js')], { stdio: ['pipe', 'pipe', 'pipe'] });
+    const report = (o) => { try { win && win.webContents.send('input-status', o); } catch {} };
+    let errSent = 0;
+    inputProc.stdout.on('data', (d) => {
+      for (const line of String(d).split('\n')) {
+        if (line.startsWith('READY')) {
+          inputReady = true;
+          report({ app: systemPreferences.isTrustedAccessibilityClient(false), helper: line.split(' ')[1] });
+        } else if (line.startsWith('ERR') && errSent++ < 5) report({ err: line.slice(4) });
+      }
+    });
+    inputProc.stderr.on('data', (d) => { if (errSent++ < 5) report({ err: String(d).trim().slice(0, 300) }); });
     inputProc.on('exit', () => { inputProc = null; inputReady = false; });
     return;
   }

@@ -597,6 +597,16 @@ async function boot() {
   // экран хоста
   $('#btnHostStop').onclick = () => endSession('Вы отключили помощника.');
   api.onHostDisconnect(() => endSession('Вы отключили помощника.'));
+  // отчёт исполнителя мыши на Mac — показываем и здесь, и у помощника
+  api.onInputStatus && api.onInputStatus((o) => {
+    let text;
+    if (o.err) text = 'Mac: ошибка управления — ' + o.err;
+    else if (o.helper === '1') text = 'Mac: управление мышью разрешено ✓';
+    else text = `Mac: управление мышью НЕ разрешено (Помощник: ${o.app ? 'да' : 'нет'}, исполнитель: ${o.helper === '0' ? 'нет' : o.helper}). ` +
+      (o.app ? 'Нужно добавить в «Универсальный доступ» ещё /usr/bin/osascript.' : 'Включите «Помощник» в «Универсальный доступ» и перезапустите его.');
+    console.log(text); if (!o.helper || o.helper !== '1' || o.err) toast(text, 'err');
+    sendCtl({ t: 'msg', s: text });
+  });
   $('#btnHostFile').onclick = async () => { const f = await api.filePick(); if (f) sendFile(f); };
 
   // экран просмотра

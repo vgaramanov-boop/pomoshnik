@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('api', {
   maximize: inv('win:maximize'),
   minimize: inv('win:minimize'),
   viewerMode: inv('viewer-mode'),
+  onInputStatus: (cb) => ipcRenderer.on('input-status', (_e, o) => cb(o)),
   onHostDisconnect: (cb) => ipcRenderer.on('host:disconnect', () => cb()),
   bannerDisconnect: () => ipcRenderer.send('banner:disconnect'),
   onBannerName: (cb) => ipcRenderer.on('banner-name', (_e, n) => cb(n)),

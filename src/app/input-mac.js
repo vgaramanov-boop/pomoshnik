@@ -1,10 +1,12 @@
 // Помощник: исполнитель команд мыши и клавиатуры на macOS (JavaScript for Automation + CoreGraphics).
 // Запускается программой через `osascript -l JavaScript`, читает команды построчно из stdin.
 // Работает только пока идёт сеанс, разрешённый пользователем. Нужно разрешение «Универсальный доступ».
-ObjC.import('Foundation');
-ObjC.import('AppKit');
-ObjC.import('CoreGraphics');
+ObjC.import('Cocoa');
 ObjC.import('ApplicationServices');
+var OUT = $.NSFileHandle.fileHandleWithStandardOutput;
+function say(s) { try { OUT.writeData($(s + '\n').dataUsingEncoding($.NSUTF8StringEncoding)); } catch (e) {} }
+var errCount = 0;
+function pt() { try { return $.CGPointMake(pos.x, pos.y); } catch (e) { return { x: pos.x, y: pos.y }; } }
 
 var TAP = 0; // kCGHIDEventTap
 var F = { shift: 0x20000, ctrl: 0x40000, alt: 0x80000, cmd: 0x100000 };
@@ -31,7 +33,8 @@ var last = { t: 0, x: -99, y: -99, b: -1, n: 0 };
 
 function post(e) { if (e) { $.CGEventSetFlags(e, flags()); $.CGEventPost(TAP, e); } }
 function mouse(type, btn, clicks) {
-  var e = $.CGEventCreateMouseEvent(null, type, { x: pos.x, y: pos.y }, btn);
+  var e = $.CGEventCreateMouseEvent(null, type, pt(), btn);
+  if (!e || (e.isNil && e.isNil())) throw new Error('CGEventCreateMouseEvent вернул пусто');
   if (clicks) $.CGEventSetIntegerValueField(e, 1, clicks); // kCGMouseEventClickState: двойной щелчок
   post(e);
 }
@@ -97,13 +100,14 @@ function handle(line) {
       case 't': text(b64(p[1])); break;
       case 'q': return false;
     }
-  } catch (e) { }
+  } catch (e) { if (errCount++ < 3) say('ERR ' + p[0] + ': ' + e); }
   return true;
 }
 
 function run() {
-  var out = $.NSFileHandle.fileHandleWithStandardOutput;
-  out.writeData($('READY ' + ($.AXIsProcessTrusted() ? '1' : '0') + '\n').dataUsingEncoding($.NSUTF8StringEncoding));
+  var trusted = '?';
+  try { trusted = $.AXIsProcessTrusted() ? '1' : '0'; } catch (e) { say('ERR AX: ' + e); }
+  say('READY ' + trusted);
   var inp = $.NSFileHandle.fileHandleWithStandardInput;
   var buf = '';
   while (true) {
